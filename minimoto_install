@@ -1,0 +1,78 @@
+#!/bin/bash
+# example
+#   script="sudo apt-get update; \
+#           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pip; \
+#           sudo DEBIAN_FRONTEND=noninteractive apt-get install imagemagick libav-tools; \
+#           sudo pip install boto3"
+#   ssh -o StrictHostKeyChecking=no -i ./MySetupKeyPair.pem ubuntu@ec2-13-55-229-202.ap-southeast-2.compute.amazonaws.com ${script}
+#   scp -o StrictHostKeyChecking=no -i ./MySetupKeyPair.pem Makefile ubuntu@ec2-13-55-229-202.ap-southeast-2.compute.amazonaws.com:~
+#   sudo apt-get update > /dev/null
+#
+#   sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pip > /dev/null
+#
+#   sudo DEBIAN_FRONTEND=noninteractive apt-get install imagemagick libav-tools > /dev/null
+#
+#   sudo DEBIAN_FRONTEND=noninteractive apt-get install make > /dev/null
+#
+#   ssh -o StrictHostKeyChecking=no -i ./MySetupKeyPair.pem ubuntu@ec2-13-55-246-215.ap-southeast-2.compute.amazonaws.com
+#   scp -o StrictHostKeyChecking=no -i ./MySetupKeyPair.pem ./sample_pics_medium/* ubuntu@ec2-52-65-236-213.ap-southeast-2.compute.amazonaws.com:~/sample_pics_medium/
+#
+#   scp -o StrictHostKeyChecking=no -i ./MySetupKeyPair.pem minimoto_service.py ubuntu@ec2-52-63-154-214.ap-southeast-2.compute.amazonaws.com:~
+#   ssh -o StrictHostKeyChecking=no -i ./MySetupKeyPair.pem ubuntu@ec2-54-79-126-6.ap-southeast-2.compute.amazonaws.com
+#   scp -o StrictHostKeyChecking=no -i ./MySetupKeyPair.pem minimoto_service.py ubuntu@ec2-52-63-154-214.ap-southeast-2.compute.amazonaws.com:~
+
+
+key_file=$1
+host=$2
+client_addr=$3
+client_code=$4
+watchdog_addr=$5
+watchdog_code=$6
+service_addr=$7
+service_code=$8
+trans_code=$9
+
+# client configure
+chmod +x ${client_code}
+client_script="sudo apt-get update > /dev/null; \
+       sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pip  > /dev/null; \
+       sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python-pip  > /dev/null; \
+       sudo pip3 install boto  > /dev/null; \
+       sudo pip3 install boto3  > /dev/null"
+ssh -o StrictHostKeyChecking=no -i ${key_file} ${host}@${client_addr} "${client_script}"
+scp -o StrictHostKeyChecking=no -i ${key_file} ${client_code} ${host}@${client_addr}:~
+
+
+# watchdog instance
+chmod +x ${watchdog_code}
+watchdog_script="sudo apt-get update > /dev/null; \
+       sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pip > /dev/null; \
+       sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python-pip  > /dev/null; \
+       sudo pip3 install boto  > /dev/null; \
+       sudo pip3 install boto3 > /dev/null"
+ssh -o StrictHostKeyChecking=no -i ${key_file} ${host}@${watchdog_addr}  "${watchdog_script}"
+scp -o StrictHostKeyChecking=no -i ${key_file} ${watchdog_code} ${host}@${watchdog_addr}:~
+scp -o StrictHostKeyChecking=no -i ${key_file} ${key_file} ${host}@${watchdog_addr}:~
+scp -o StrictHostKeyChecking=no -i ${key_file} "minimoto_watchdog" ${host}@${watchdog_addr}:~
+
+
+# service instance
+chmod +x ${service_code}
+chmod +x ${trans_code}
+scp -o StrictHostKeyChecking=no -i ${key_file} ./run_service ${host}@${service_addr}:~
+scp -o StrictHostKeyChecking=no -i ${key_file} ./service.cron ${host}@${service_addr}:~
+service_script="sudo apt-get update > /dev/null; \
+       sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3-pip > /dev/null; \
+       sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python-pip  > /dev/null; \
+       sudo DEBIAN_FRONTEND=noninteractive apt-get install -y imagemagick libav-tools  > /dev/null; \
+       sudo pip3 install boto  > /dev/null; \
+       sudo pip3 install boto3 > /dev/null; \
+       chmod +x run_service; \
+       crontab service.cron"
+ssh -o StrictHostKeyChecking=no -i ${key_file} ${host}@${service_addr} "${service_script}"
+scp -o StrictHostKeyChecking=no -i ${key_file} ${service_code} ${host}@${service_addr}:~
+scp -o StrictHostKeyChecking=no -i ${key_file} ${trans_code} ${host}@${service_addr}:~
+ssh -o StrictHostKeyChecking=no -i ${key_file} ${host}@${service_addr} "mv minimoto_service.py minimoto_service"
+
+
+
